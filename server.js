@@ -1,7 +1,7 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const { v4: uuidv4 } = require('uuid'); // Import uuid for generating unique identifiers
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,18 +21,20 @@ const pool = new Pool({
 
 // POST Route for User Registration
 app.post('/register', async (req, res) => {
-  const { username, password, phoneNumber, licensePlate } = req.body;
+  const { username, password, userEmail, phoneNumber, licensePlate } = req.body;
 
-  if (!username || !password || !phoneNumber || !licensePlate) {
+  if (!username || !password || !userEmail || !phoneNumber || !licensePlate) {
     return res.status(400).json({ message: 'All fields are required' });
   }
 
+  const userUnique = uuidv4(); // Generate a unique identifier for the user
+
   try {
-    const query = 'INSERT INTO user_credentials (username, password, phone_num, license_plate) VALUES ($1, $2, $3, $4) RETURNING id';
-    const values = [username, password, phoneNumber, licensePlate];
+    const query = 'INSERT INTO user_credentials (username, password, user_email, phone_num, license_plate, user_unique) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
+    const values = [username, password, userEmail, phoneNumber, licensePlate, userUnique]; // Include userUnique in values
     const result = await pool.query(query, values);
     
-    return res.status(201).json({ message: 'User registered successfully!', userId: result.rows[0].id });
+    return res.status(201).json({ message: 'User registered successfully!', userId: result.rows[0].id, userUnique });
   } catch (err) {
     return res.status(500).json({ message: 'Database query failed', error: err.message });
   }
