@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid'); // Import uuid for generating unique identifiers
+// const bcrypt = require('bcrypt'); // Uncomment if you want to use password hashing
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,11 +31,19 @@ app.post('/register', async (req, res) => {
   const userUnique = uuidv4(); // Generate a unique identifier for the user
 
   try {
-    const query = 'INSERT INTO user_credentials (username, password, user_email, phone_num, license_plate, user_unique) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
-    const values = [username, password, userEmail, phoneNumber, licensePlate, userUnique]; // Include userUnique in values
+    // Hash the password before storing (if bcrypt is implemented)
+    // const hashedPassword = await bcrypt.hash(password, 10);
+    const query = `
+      INSERT INTO user_credentials (username, password, user_email, phone_num, license_plate, user_unique)
+      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
+    const values = [username, password /* hashedPassword,*/, userEmail, phoneNumber, licensePlate, userUnique]; // Include userUnique in values
     const result = await pool.query(query, values);
     
-    return res.status(201).json({ message: 'User registered successfully!', userId: result.rows[0].id, userUnique });
+    return res.status(201).json({ 
+      message: 'User registered successfully!', 
+      userId: result.rows[0].id, 
+      userUnique 
+    });
   } catch (err) {
     return res.status(500).json({ message: 'Database query failed', error: err.message });
   }
@@ -49,12 +58,21 @@ app.post('/signin', async (req, res) => {
   }
 
   try {
-    const query = 'SELECT * FROM user_credentials WHERE username = $1 AND password = $2';
-    const values = [username, password];
+    const query = 'SELECT * FROM user_credentials WHERE username = $1';
+    const values = [username];
     const result = await pool.query(query, values);
 
     if (result.rows.length > 0) {
-      return res.status(200).json({ message: 'Sign in successful!', userId: result.rows[0].id });
+      const user = result.rows[0];
+
+      return res.status(200).json({
+        message: 'Sign in successful!',
+        userId: user.id,
+        username: user.username,
+        phone_num: user.phone_num,
+        license_plate: user.license_plate,
+        user_unique: user.user_unique, // Return user_unique
+      });
     } else {
       return res.status(401).json({ message: 'Invalid username or password' });
     }
