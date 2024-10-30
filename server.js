@@ -69,6 +69,7 @@ app.post('/signin', async (req, res) => {
         message: 'Sign in successful!',
         userId: user.id,
         username: user.username,
+        user_email: user.user_email,
         phone_num: user.phone_num,
         license_plate: user.license_plate,
         user_unique: user.user_unique, // Return user_unique
