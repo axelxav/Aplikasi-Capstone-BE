@@ -82,6 +82,41 @@ app.post('/signin', async (req, res) => {
   }
 });
 
+app.get('/getPlaces', async (req, res) => {
+  const { places_type, places_addr } = req.query; // Get places_type and places_addr from query params
+  
+  let query = 'SELECT * FROM places';
+  const values = [];
+  const conditions = [];
+
+  // Build query based on parameters provided
+  if (places_type) {
+    conditions.push('places_type = $1');
+    values.push(places_type);
+  }
+  
+  if (places_addr) {
+    conditions.push('places_addr = $2');
+    values.push(places_addr);
+  }
+  
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+
+  console.log('Query:', query); // Log the constructed SQL query
+  console.log('Values:', values); // Log parameter values
+
+  try {
+      const result = await pool.query(query, values); // Execute the query
+      res.status(200).json(result.rows); // Respond with the rows
+  } catch (error) {
+      console.error('Database error:', error);
+      res.status(500).json({ error: 'Error fetching places' });
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
