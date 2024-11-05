@@ -58,8 +58,8 @@ app.post('/signin', async (req, res) => {
   }
 
   try {
-    const query = 'SELECT * FROM user_credentials WHERE username = $1';
-    const values = [username];
+    const query = 'SELECT * FROM user_credentials WHERE username = $1 AND password = $2';
+    const values = [username, password];
     const result = await pool.query(query, values);
 
     if (result.rows.length > 0) {
