@@ -116,8 +116,8 @@ app.get('/getPlaces', async (req, res) => {
   }
 });
 
-app.post('/reservation', async (req, res) =>{
-  const {user_id, selectedSlot} = req.body;
+app.post('/reservation', async (req, res) => {
+  const { user_id, selectedSlot } = req.body;
 
   if (!user_id) {
     return res.status(400).json({ message: 'empty values (user_id)' });
@@ -127,17 +127,35 @@ app.post('/reservation', async (req, res) =>{
   }
 
   try {
-    const query = `UPDATE sensor_data SET user_id = $1 WHERE id = $2`;
-    const values = [user_id, selectedSlot];
-    const result = await pool.query(query, values);
+    // First update the sensor_data entry
+    const updateQuery = `UPDATE sensor_data SET user_id = $1 WHERE id = $2`;
+    const updateValues = [user_id, selectedSlot];
+    const updateResult = await pool.query(updateQuery, updateValues);
 
-    return res.status(201).json({
-      message: 'Reservation successful!',
-    })
+    if (updateResult.rowCount > 0) {
+      // Now fetch the updated entry to get the reservation_qr
+      const fetchQuery = `SELECT reservation_qr FROM sensor_data WHERE id = $1`;
+      const fetchValues = [selectedSlot];
+      const fetchResult = await pool.query(fetchQuery, fetchValues);
+
+      if (fetchResult.rows.length > 0) {
+        const reservation_qr = fetchResult.rows[0].reservation_qr;
+
+        return res.status(200).json({
+          message: 'Reservation successful!',
+          reservation_qr: reservation_qr, // Return the fetched reservation_qr
+        });
+      } else {
+        return res.status(404).json({ message: 'Reservation not found' });
+      }
+    } else {
+      return res.status(404).json({ message: 'Failed to create reservation' });
+    }
   } catch (err) {
     return res.status(500).json({ message: 'Database query failed', error: err.message });
   }
-})
+});
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
