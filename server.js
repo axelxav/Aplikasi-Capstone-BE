@@ -67,7 +67,7 @@ app.post('/signin', async (req, res) => {
 
       return res.status(200).json({
         message: 'Sign in successful!',
-        userId: user.id,
+        id: user.id,
         username: user.username,
         user_email: user.user_email,
         phone_num: user.phone_num,
@@ -116,6 +116,28 @@ app.get('/getPlaces', async (req, res) => {
   }
 });
 
+app.post('/reservation', async (req, res) =>{
+  const {user_id, selectedSlot} = req.body;
+
+  if (!user_id) {
+    return res.status(400).json({ message: 'empty values (user_id)' });
+  }
+  if (!selectedSlot) {
+    return res.status(400).json({ message: 'empty values (selectedSlot)' });
+  }
+
+  try {
+    const query = `UPDATE sensor_data SET user_id = $1 WHERE id = $2`;
+    const values = [user_id, selectedSlot];
+    const result = await pool.query(query, values);
+
+    return res.status(201).json({
+      message: 'Reservation successful!',
+    })
+  } catch (err) {
+    return res.status(500).json({ message: 'Database query failed', error: err.message });
+  }
+})
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
