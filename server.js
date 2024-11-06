@@ -156,6 +156,41 @@ app.post('/reservation', async (req, res) => {
   }
 });
 
+app.get('/hasArrived', async (req, res) => {
+  const { user_id } = req.query;
+
+  const query = `SELECT has_arrived FROM sensor_data WHERE user_id = $1`;
+  const values = [user_id];
+  const result = await pool.query(query, values);
+
+  if (result.rows.length > 0) {
+    const has_arrived = result.rows[0].has_arrived;
+
+    return res.status(200).json({
+      has_arrived: has_arrived,
+    });
+  } else {
+    return res.status(404).json({ message: 'error on update has_arrived status!' });
+  }
+});
+
+app.post('/has_open', async (req, res) => {
+  const { user_id } = req.body;
+
+  const query = `UPDATE sensor_data SET has_open = true WHERE user_id = $1`;
+  const values = [user_id];
+  const result = await pool.query(query, values);
+
+  if (result.rowCount > 0) {
+    return res.status(200).json({
+      message: 'The gate is open!',
+    });
+  } else {
+    return res.status(404).json({ message: 'error on update has_open status!' });
+  }
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
