@@ -190,6 +190,41 @@ app.post('/has_open', async (req, res) => {
   }
 });
 
+app.get('/hasFinished', async (req, res) => {
+  const { user_id } = req.query;
+
+  const query = `SELECT has_finished FROM sensor_data WHERE user_id = $1`;
+  const values = [user_id];
+  const result = await pool.query(query, values);
+
+  if (result.rows.length > 0) {
+    const has_finished = result.rows[0].has_finished;
+
+    return res.status(200).json({
+      has_finished: has_finished,
+    });
+  } else {
+    return res.status(404).json({ message: 'error on update has_finished status!' });
+  }
+});
+
+app.post('/finishReservation', async (req, res) => {
+  const {user_id} = req.body;
+
+  const query = `UPDATE sensor_data SET has_finished = false AND has_open = false AND has_arrived = false AND user_id = null WHERE user_id = $1`;
+  const values = [user_id];
+  const result = await pool.query(query, values);
+
+  if (result.rowCount > 0) {
+    return res.status(200).json({
+      message: 'Reservation finished!',
+    });
+  } else {
+    return res.status(404).json({ message: 'error on finish reservation!' });
+  }
+});
+
+
 
 
 app.listen(PORT, () => {
