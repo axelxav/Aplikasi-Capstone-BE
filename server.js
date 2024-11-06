@@ -211,21 +211,40 @@ app.get('/hasFinished', async (req, res) => {
 app.post('/finishReservation', async (req, res) => {
   const {user_id} = req.body;
 
-  const query = `UPDATE sensor_data SET has_finished = false AND has_open = false AND has_arrived = false AND user_id = null WHERE user_id = $1`;
+  const query = `UPDATE sensor_data SET has_finished = false WHERE user_id = $1`;
+  const query2 = `UPDATE sensor_data SET has_open = false WHERE user_id = $1`;
+  const query3 = `UPDATE sensor_data SET has_arrived = false WHERE user_id = $1`;
+  const query4 = `UPDATE sensor_data SET user_id = null WHERE user_id = $1`;
   const values = [user_id];
   const result = await pool.query(query, values);
+  const result2 = await pool.query(query2, values);
+  const result3 = await pool.query(query3, values);
+  const result4 = await pool.query(query4, values);
 
   if (result.rowCount > 0) {
     return res.status(200).json({
-      message: 'Reservation finished!',
+      message: 'has_finished status updated!',
     });
-  } else {
+  }
+  else if (result2.rowCount > 0) {
+    return res.status(200).json({
+      message: 'has_open status updated!',
+    });
+  } 
+  else if (result3.rowCount > 0) {
+    return res.status(200).json({
+      message: 'has_arrived status updated!',
+    });
+  } 
+  else if (result4.rowCount > 0) {
+    return res.status(200).json({
+      message: 'user_id status updated!',
+    });
+  } 
+  else {
     return res.status(404).json({ message: 'error on finish reservation!' });
   }
 });
-
-
-
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
