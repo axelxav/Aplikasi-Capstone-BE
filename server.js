@@ -209,42 +209,71 @@ app.get('/hasFinished', async (req, res) => {
 });
 
 app.post('/finishReservation', async (req, res) => {
-  const {user_id} = req.body;
-
-  const query = `UPDATE sensor_data SET has_finished = false WHERE user_id = $1`;
-  const query2 = `UPDATE sensor_data SET has_open = false WHERE user_id = $1`;
-  const query3 = `UPDATE sensor_data SET has_arrived = false WHERE user_id = $1`;
-  const query4 = `UPDATE sensor_data SET user_id = null WHERE user_id = $1`;
+  const { user_id } = req.body;
+  const queries = [
+    `UPDATE sensor_data SET has_finished = false WHERE user_id = $1`,
+    `UPDATE sensor_data SET has_open = false WHERE user_id = $1`,
+    `UPDATE sensor_data SET has_arrived = false WHERE user_id = $1`,
+    `UPDATE sensor_data SET user_id = null WHERE user_id = $1`
+  ];
   const values = [user_id];
-  const result = await pool.query(query, values);
-  const result2 = await pool.query(query2, values);
-  const result3 = await pool.query(query3, values);
-  const result4 = await pool.query(query4, values);
 
-  if (result.rowCount > 0) {
-    return res.status(200).json({
-      message: 'has_finished status updated!',
-    });
-  }
-  else if (result2.rowCount > 0) {
-    return res.status(200).json({
-      message: 'has_open status updated!',
-    });
-  } 
-  else if (result3.rowCount > 0) {
-    return res.status(200).json({
-      message: 'has_arrived status updated!',
-    });
-  } 
-  else if (result4.rowCount > 0) {
-    return res.status(200).json({
-      message: 'user_id status updated!',
-    });
-  } 
-  else {
-    return res.status(404).json({ message: 'error on finish reservation!' });
+  try {
+    await pool.query('BEGIN'); // Begin a new transaction
+
+    for (const query of queries) {
+      const result = await pool.query(query, values);
+      if (result.rowCount === 0) {
+        // If the current update did not affect any rows, roll back and return an error
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ message: 'No rows updated for given user_id.' });
+      }
+    }
+
+    await pool.query('COMMIT'); // Commit the transaction if all updates were successful
+
+    return res.status(200).json({ message: 'Reservation status updated successfully!' });
+
+  } catch (error) {
+    await pool.query('ROLLBACK'); // Roll back all updates in case of error
+    console.error('Error updating reservation status:', error);
+    return res.status(500).json({ message: 'Internal server error while finishing reservation.' });
   }
 });
+
+
+app.get('/scanSensorData', async (req, res) => {
+  const { user_id } = req.query;
+
+  // Ensure user_id is provided
+  if (!user_id) {
+    return res.status(400).json({ message: 'User ID is required' });
+  }
+
+  const query = `SELECT * FROM sensor_data WHERE user_id = $1`;
+  const values = [user_id];
+
+  try {
+    const result = await pool.query(query, values);
+
+    if (result.rows.length > 0) {
+      const sensor_data = result.rows[0];
+      
+      return res.status(200).json({
+        fetched_user_id: sensor_data.user_id,
+        slotAssigned: sensor_data.id,
+        slotAssignedQr: sensor_data.reservation_qr,
+      });
+    } else {
+      return res.status(404).json({ message: 'No sensor data found for user ID: ' + values });
+    }
+
+  } catch (error) {
+    console.error('Error fetching sensor data:', error);
+    return res.status(500).json({ message: 'An error occurred while scanning sensor data' });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
