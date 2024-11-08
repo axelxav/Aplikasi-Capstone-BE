@@ -16,7 +16,8 @@ const pool = new Pool({
   user: 'postgres', // replace with your database user
   host: 'localhost', // replace with your host if necessary
   database: 'capstone', // your database name
-  password: '1234', // replace with your database password
+  // password: '1234', // postgres database for windows
+  password: '1234', // postgres database for ubuntu
   port: 5432, // default PostgreSQL port
 });
 
@@ -69,6 +70,7 @@ app.post('/signin', async (req, res) => {
         message: 'Sign in successful!',
         id: user.id,
         username: user.username,
+        password: user.password,
         user_email: user.user_email,
         phone_num: user.phone_num,
         license_plate: user.license_plate,
@@ -274,6 +276,56 @@ app.get('/scanSensorData', async (req, res) => {
   }
 });
 
+app.post('/editProfile', async (req, res) => {
+  const { user_id, newUsername, newPassword, newEmail, newPhoneNum, newLicensePlate } = req.body;
+
+  try {
+    let query = `UPDATE user_credentials SET`;
+    const values = [];
+    const conditions = [];
+
+    // Dynamically build the query based on provided fields
+    if (newUsername) {
+      conditions.push(`username = $${conditions.length + 1}`);
+      values.push(newUsername);
+    }
+    if (newPassword) {
+      conditions.push(`password = $${conditions.length + 1}`);
+      values.push(newPassword);
+    }
+    if (newEmail) {
+      conditions.push(`user_email = $${conditions.length + 1}`);
+      values.push(newEmail);
+    }
+    if (newPhoneNum) {
+      conditions.push(`phone_num = $${conditions.length + 1}`);
+      values.push(newPhoneNum);
+    }
+    if (newLicensePlate) {
+      conditions.push(`license_plate = $${conditions.length + 1}`);
+      values.push(newLicensePlate);
+    }
+
+    // Ensure there are fields to update
+    if (conditions.length === 0) {
+      return res.status(400).json({ message: 'No fields to update'});
+    }
+
+    // Add user_id to the end of values and build the WHERE clause
+    values.push(user_id);
+    query += ' ' + conditions.join(', ') + ` WHERE id = $${values.length}`;
+
+    console.log('Query:', query); // Log the constructed SQL query
+    console.log('Values:', values); // Log parameter values
+
+    // Execute the query
+    const result = await pool.query(query, values);
+    res.status(200).json({ message: 'Profile updated successfully!' });
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Error updating profile' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
