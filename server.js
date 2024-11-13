@@ -399,6 +399,32 @@ app.get("/getHistory", async (req, res) => {
   }
 });
 
+// New route to check slot availability
+app.get("/checkSlotAvailability", async (req, res) => {
+  const slots = ["A1", "A2", "A3", "B1", "B2"];
+
+  try {
+    const query = `SELECT id, user_id FROM sensor_data WHERE id = ANY($1::varchar[])`;
+    const values = [slots];
+
+    const result = await pool.query(query, values);
+
+    // Create a mapping of availability
+    const availability = {};
+    slots.forEach((slot) => {
+      const entry = result.rows.find((row) => row.id === slot);
+      availability[slot] = entry ? entry.user_id !== null : false; // true if user_id is not null
+    });
+
+    return res.status(200).json(availability);
+  } catch (error) {
+    console.error("Error fetching slot availability:", error);
+    return res
+      .status(500)
+      .json({ message: "Error fetching slot availability." });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
