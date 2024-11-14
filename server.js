@@ -135,15 +135,30 @@ app.get("/getPlaces", async (req, res) => {
 app.post("/reservation", async (req, res) => {
   const { user_id, selectedSlot } = req.body;
 
-  if (!user_id) {
-    return res.status(400).json({ message: "empty values (user_id)" });
-  }
-  if (!selectedSlot) {
-    return res.status(400).json({ message: "empty values (selectedSlot)" });
+  if (!user_id || !selectedSlot) {
+    return res.status(400).json({
+      message: "empty values (user_id or selectedSlot can't be empty)",
+    });
   }
 
   try {
-    // First update the sensor_data entry
+    // Start a database transaction
+    await pool.query("BEGIN");
+
+    // Lock the selected slot for update
+    const lockQuery = `SELECT id FROM sensor_data WHERE id = $1 FOR UPDATE`;
+    const lockValues = [selectedSlot];
+    const lockResult = await pool.query(lockQuery, lockValues);
+
+    // Check if the slot is locked or unavailable
+    if (lockResult.rowCount === 0) {
+      await pool.query("ROLLBACK");
+      return res
+        .status(404)
+        .json({ message: "Slot not found or already reserved" });
+    }
+
+    // Update the sensor_data entry
     const updateQuery = `UPDATE sensor_data SET user_id = $1 WHERE id = $2`;
     const updateValues = [user_id, selectedSlot];
     const updateResult = await pool.query(updateQuery, updateValues);
@@ -157,17 +172,24 @@ app.post("/reservation", async (req, res) => {
       if (fetchResult.rows.length > 0) {
         const reservation_qr = fetchResult.rows[0].reservation_qr;
 
+        // Commit the transaction
+        await pool.query("COMMIT");
+
         return res.status(200).json({
           message: "Reservation successful!",
           reservation_qr: reservation_qr, // Return the fetched reservation_qr
         });
       } else {
+        await pool.query("ROLLBACK");
         return res.status(404).json({ message: "Reservation not found" });
       }
     } else {
+      await pool.query("ROLLBACK");
       return res.status(404).json({ message: "Failed to create reservation" });
     }
   } catch (err) {
+    await pool.query("ROLLBACK");
+    console.error(err);
     return res
       .status(500)
       .json({ message: "Database query failed", error: err.message });
